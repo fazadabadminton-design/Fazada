@@ -1,0 +1,6 @@
+{
+  "name": "Fazada Badminton",
+  "description": "Aplikasi penyewaan lapangan badminton dengan fitur pemesanan online, jadwal real-time, pembayaran digital, dan portal admin.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
