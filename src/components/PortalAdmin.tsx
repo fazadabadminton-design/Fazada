@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Users, BookOpen, DollarSign, Settings, Plus, Search, Trash2, Edit2, Check, RefreshCw, Smartphone, Sliders, ChevronDown, Award, TrendingUp, Calendar } from 'lucide-react';
+import { Users, BookOpen, DollarSign, Settings, Plus, Search, Trash2, Edit2, Check, RefreshCw, Smartphone, Sliders, ChevronDown, Award, TrendingUp, Calendar, Upload, Image } from 'lucide-react';
 import { Booking, Member, FinancialRecord, AppSettings } from '../types';
 
 interface PortalAdminProps {
@@ -446,6 +446,53 @@ export default function PortalAdmin({
     if (window.confirm('Hapus transaksi ini?')) {
       onUpdateFinancials(financials.filter(f => f.id !== id));
     }
+  };
+
+  // Action: Handle Local Logo File Upload & Resize
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Ukuran file terlalu besar. Silakan pilih gambar di bawah 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 160;
+        const MAX_HEIGHT = 160;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Set compressed JPEG base64
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setLogoUrl(dataUrl);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   // Action: Save Settings
@@ -1082,11 +1129,36 @@ export default function PortalAdmin({
 
             <div className="space-y-2 border-t pt-4">
               <label className="text-xs font-bold text-gray-700 block">Kustomisasi Logo Lapangan</label>
-              <div className="flex items-center gap-4">
+              
+              {/* Local File Uploader from Computer/Drive */}
+              <div className="p-4 bg-gray-50/50 border border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-emerald-50/30 hover:border-emerald-400 transition-all duration-200 relative group">
+                <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl group-hover:scale-110 transition duration-150">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <div className="text-xs text-gray-600">
+                  <span className="font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer transition">
+                    Pilih File Logo dari Komputer / Drive
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400">Format PNG, JPG, JPEG (Max. 5MB). Otomatis dikompresi & disimpan.</p>
+              </div>
+
+              <div className="flex items-center gap-4 pt-1">
                 {/* Logo Preview */}
-                <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-200 flex items-center justify-center bg-emerald-50 shadow-inner shrink-0">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-200 flex items-center justify-center bg-emerald-50 shadow-inner shrink-0 relative">
                   {logoUrl ? (
-                    <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=120&auto=format&fit=crop&q=60'; }} referrerPolicy="no-referrer" />
+                    <>
+                      <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=120&auto=format&fit=crop&q=60'; }} referrerPolicy="no-referrer" />
+                      {logoUrl.startsWith('data:image/') && (
+                        <span className="absolute bottom-1 right-1 bg-emerald-500 text-white text-[8px] font-bold px-1 rounded-sm shadow-sm">Base64</span>
+                      )}
+                    </>
                   ) : (
                     <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md border-b-2 border-emerald-800">
                       {adminName ? adminName[0].toUpperCase() : 'F'}
@@ -1094,6 +1166,7 @@ export default function PortalAdmin({
                   )}
                 </div>
                 <div className="flex-1 space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 block">Atau input URL Link Gambar:</label>
                   <input
                     type="text"
                     placeholder="URL Gambar Logo (Kosongkan untuk inisial nama)"
@@ -1101,7 +1174,6 @@ export default function PortalAdmin({
                     onChange={e => setLogoUrl(e.target.value)}
                     className="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
-                  <span className="text-[10px] text-gray-400 block">Masukkan URL gambar logo Anda atau pilih rekomendasi di bawah ini:</span>
                 </div>
               </div>
 
