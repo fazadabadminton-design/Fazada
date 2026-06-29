@@ -32,12 +32,111 @@ export default function App() {
   const [syncMessage, setSyncMessage] = useState('');
   const [showSheetGuide, setShowSheetGuide] = useState(false);
 
-  // Load Initial Data from DBService
+  // Load Initial Data from DBService & Google Sheet
   useEffect(() => {
+    // 1. Check query parameter for "syncUrl" first (passed via scanned QR code)
+    const params = new URLSearchParams(window.location.search);
+    const syncUrlFromParam = params.get('syncUrl');
+    let finalUrl = webAppUrl;
+
+    if (syncUrlFromParam) {
+      localStorage.setItem('fazada_web_app_url', syncUrlFromParam);
+      setWebAppUrl(syncUrlFromParam);
+      finalUrl = syncUrlFromParam;
+    }
+
+    // 2. Load Local Data First as instant fallback
     setBookings(DBService.getBookings());
     setMembers(DBService.getMembers());
     setFinancials(DBService.getFinancials());
+    setSettings(DBService.getSettings());
+
+    // 3. If a webAppUrl exists, load/sync data from Google Sheet in background
+    if (finalUrl) {
+      pullDataFromGoogleSheets(finalUrl);
+    }
   }, []);
+
+  // Background Pull from Google Sheets function
+  const pullDataFromGoogleSheets = async (url: string) => {
+    if (!url) return;
+    try {
+      // We first try a GET request (supported by our doGet in the updated Apps Script)
+      const res = await fetch(url);
+      const result = await res.json();
+      
+      if (result.status === 'success' && result.data) {
+        updateStatesFromGoogleData(result.data);
+      }
+    } catch (e) {
+      console.warn('Background GET pull failed, trying POST get_data:', e);
+      // Fallback to POST get_data (sometimes web apps only accept POST depending on security configuration)
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get_data' }),
+        });
+        const result = await res.json();
+        if (result.status === 'success' && result.data) {
+          updateStatesFromGoogleData(result.data);
+        }
+      } catch (postErr) {
+        console.warn('Fallback POST get_data failed too:', postErr);
+      }
+    }
+  };
+
+  // Helper to parse and update local and react states
+  const updateStatesFromGoogleData = (data: any) => {
+    if (data.bookings && Array.isArray(data.bookings)) {
+      const formattedBookings = data.bookings.map((b: any) => ({
+        ...b,
+        totalBayar: Number(b.totalBayar) || 50000,
+      }));
+      setBookings(formattedBookings);
+      DBService.saveBookings(formattedBookings);
+    }
+    if (data.members && Array.isArray(data.members)) {
+      const formattedMembers = data.members.map((m: any) => ({
+        ...m,
+        biayaSewa: m.biayaSewa ? Number(m.biayaSewa) : undefined,
+      }));
+      setMembers(formattedMembers);
+      DBService.saveMembers(formattedMembers);
+    }
+    if (data.financials && Array.isArray(data.financials)) {
+      const formattedFinancials = data.financials.map((f: any) => ({
+        ...f,
+        jumlah: Number(f.jumlah) || 0,
+      }));
+      setFinancials(formattedFinancials);
+      DBService.saveFinancials(formattedFinancials);
+    }
+    if (data.settings && typeof data.settings === 'object') {
+      const s = data.settings;
+      const formattedSettings: AppSettings = {
+        adminName: s.adminName || settings.adminName,
+        adminPhone: s.adminPhone || settings.adminPhone,
+        hargaPerJam: Number(s.hargaPerJam) || settings.hargaPerJam,
+        qrisCodeUrl: s.qrisCodeUrl || settings.qrisCodeUrl,
+        bankName: s.bankName || settings.bankName,
+        bankAccountNumber: s.bankAccountNumber || settings.bankAccountNumber,
+        logoUrl: s.logoUrl || settings.logoUrl,
+      };
+      setSettings(formattedSettings);
+      DBService.saveSettings(formattedSettings);
+    }
+  };
+
+  // Background Auto-Pull Interval every 15 seconds to ensure real-time phone <-> laptop sync
+  useEffect(() => {
+    if (!webAppUrl) return;
+    const interval = setInterval(() => {
+      pullDataFromGoogleSheets(webAppUrl);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [webAppUrl]);
 
   // Update State & Save to LocalStorage
   const handleUpdateBookings = (newBookings: Booking[]) => {
@@ -187,6 +286,22 @@ export default function App() {
 
 const doc = SpreadsheetApp.getActiveSpreadsheet();
 
+function doGet(e) {
+  try {
+    const data = {
+      bookings: readFromSheet("Bookings"),
+      members: readFromSheet("Members"),
+      financials: readFromSheet("Financials"),
+      settings: readSettingsSheet()
+    };
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", data: data }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 function doPost(e) {
   try {
     const postData = JSON.parse(e.postData.contents);
@@ -197,14 +312,53 @@ function doPost(e) {
       writeToSheet("Members", postData.members);
       writeToSheet("Financials", postData.financials);
       writeSettingsSheet(postData.settings);
-      
-      return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Data synced successfully" }))
-        .setMimeType(ContentService.MimeType.JSON);
     }
+
+    const data = {
+      bookings: readFromSheet("Bookings"),
+      members: readFromSheet("Members"),
+      financials: readFromSheet("Financials"),
+      settings: readSettingsSheet()
+    };
+
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Data synced successfully", data: data }))
+      .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function readFromSheet(sheetName) {
+  const sheet = doc.getSheetByName(sheetName);
+  if (!sheet) return [];
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return [];
+  const headers = values[0];
+  const list = [];
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const obj = {};
+    headers.forEach((header, colIdx) => {
+      obj[header] = row[colIdx];
+    });
+    list.push(obj);
+  }
+  return list;
+}
+
+function readSettingsSheet() {
+  const sheet = doc.getSheetByName("Settings");
+  if (!sheet) return null;
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return null;
+  const headers = values[0];
+  const row = values[1];
+  const s = {};
+  headers.forEach((header, colIdx) => {
+    s[header] = row[colIdx];
+  });
+  return s;
 }
 
 function writeToSheet(sheetName, dataList) {
@@ -227,8 +381,8 @@ function writeSettingsSheet(s) {
   let sheet = doc.getSheetByName("Settings");
   if (!sheet) sheet = doc.insertSheet("Settings");
   sheet.clear();
-  sheet.appendRow(["adminName", "adminPhone", "hargaPerJam", "qrisCodeUrl"]);
-  sheet.appendRow([s.adminName, s.adminPhone, s.hargaPerJam.toString(), s.qrisCodeUrl]);
+  sheet.appendRow(["adminName", "adminPhone", "hargaPerJam", "qrisCodeUrl", "bankName", "bankAccountNumber", "logoUrl"]);
+  sheet.appendRow([s.adminName, s.adminPhone, s.hargaPerJam.toString(), s.qrisCodeUrl, s.bankName || "", s.bankAccountNumber || "", s.logoUrl || ""]);
 }`;
 
   return (
@@ -412,6 +566,7 @@ function writeSettingsSheet(s) {
             onForceSync={handleManualFullSync}
             isSyncing={isSyncing}
             isGoogleConnected={!!webAppUrl}
+            webAppUrl={webAppUrl}
           />
         )}
 

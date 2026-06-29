@@ -232,6 +232,38 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
         </button>
       </div>
 
+      {/* Cloud DB Connection Status Indicator */}
+      {(() => {
+        const hasCloudDb = typeof window !== 'undefined' && !!localStorage.getItem('fazada_web_app_url');
+        return (
+          <div className="flex justify-between items-center text-[11px] px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-500">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${hasCloudDb ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${hasCloudDb ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+              </span>
+              <span>
+                Koneksi Database: {hasCloudDb ? (
+                  <span className="font-bold text-emerald-700">SINKRON (Google Sheets Real-Time)</span>
+                ) : (
+                  <span className="font-bold text-amber-700">Lokal (LocalStorage Browser)</span>
+                )}
+              </span>
+            </div>
+            {isSyncing ? (
+              <div className="flex items-center gap-1 text-emerald-600 animate-pulse font-medium">
+                <Loader className="w-3.5 h-3.5 animate-spin" />
+                <span>Menyinkronkan...</span>
+              </div>
+            ) : (
+              <div className="text-[10px] text-gray-400">
+                Update otomatis tiap 15 detik
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {activeTab === 'booking' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           

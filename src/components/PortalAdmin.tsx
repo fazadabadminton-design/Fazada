@@ -14,6 +14,7 @@ interface PortalAdminProps {
   onForceSync: () => Promise<void>;
   isSyncing: boolean;
   isGoogleConnected: boolean;
+  webAppUrl?: string;
 }
 
 export default function PortalAdmin({
@@ -28,6 +29,7 @@ export default function PortalAdmin({
   onForceSync,
   isSyncing,
   isGoogleConnected,
+  webAppUrl,
 }: PortalAdminProps) {
   // Navigation tabs: 'dashboard' | 'members' | 'bookings' | 'finance' | 'settings'
   const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'members' | 'bookings' | 'finance' | 'settings'>('dashboard');
@@ -740,17 +742,26 @@ export default function PortalAdmin({
               <div className="pt-4 border-t border-gray-100 text-center space-y-3">
                 <span className="font-bold text-xs text-gray-700 block uppercase tracking-wide">Barcode Portal Penyewa</span>
                 <p className="text-[10px] text-gray-400">Penyewa dapat melakukan scan barcode ini untuk melakukan pemesanan lapangan langsung dari smartphone:</p>
-                <div className="inline-block p-3 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + '?portal=penyewa')}`}
-                    alt="Barcode Portal Penyewa"
-                    className="w-32 h-32 mx-auto rounded-lg"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-                <div className="text-[10px] text-emerald-700 font-mono bg-emerald-50 py-1.5 px-3 rounded-xl border border-emerald-100 overflow-hidden text-ellipsis whitespace-nowrap" title={window.location.origin + '?portal=penyewa'}>
-                  {window.location.origin}?portal=penyewa
-                </div>
+                {(() => {
+                  const shareUrl = webAppUrl 
+                    ? `${window.location.origin}?portal=penyewa&syncUrl=${encodeURIComponent(webAppUrl)}` 
+                    : `${window.location.origin}?portal=penyewa`;
+                  return (
+                    <>
+                      <div className="inline-block p-3 bg-white border border-gray-100 rounded-2xl shadow-sm mx-auto">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(shareUrl)}`}
+                          alt="Barcode Portal Penyewa"
+                          className="w-32 h-32 mx-auto rounded-lg"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      <div className="text-[10px] text-emerald-700 font-mono bg-emerald-50 py-1.5 px-3 rounded-xl border border-emerald-100 overflow-hidden text-ellipsis whitespace-nowrap" title={shareUrl}>
+                        {shareUrl}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
