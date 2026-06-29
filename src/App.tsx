@@ -5,6 +5,20 @@ import { DBService } from './services/db';
 import PortalPenyewa from './components/PortalPenyewa';
 import PortalAdmin from './components/PortalAdmin';
 
+function replaceBton(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/FAZADA\s+Bton/g, 'FAZADA BADMINTON')
+    .replace(/Fazada\s+Bton/g, 'Fazada Badminton')
+    .replace(/FAZADA\s+bton/gi, 'FAZADA BADMINTON')
+    .replace(/Fazada\s+bton/gi, 'Fazada Badminton')
+    .replace(/bton/gi, (match) => {
+      if (match === match.toUpperCase()) return 'BADMINTON';
+      if (match[0] === match[0].toUpperCase()) return 'Badminton';
+      return 'badminton';
+    });
+}
+
 export default function App() {
   // Check if forced tenant-only portal via query param
   const isTenantOnly = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('portal') === 'penyewa';
@@ -116,7 +130,7 @@ export default function App() {
     if (data.settings && typeof data.settings === 'object') {
       const s = data.settings;
       const formattedSettings: AppSettings = {
-        adminName: s.adminName || settings.adminName,
+        adminName: replaceBton(s.adminName || settings.adminName),
         adminPhone: s.adminPhone || settings.adminPhone,
         hargaPerJam: Number(s.hargaPerJam) || settings.hargaPerJam,
         qrisCodeUrl: s.qrisCodeUrl || settings.qrisCodeUrl,
@@ -158,9 +172,13 @@ export default function App() {
   };
 
   const handleUpdateSettings = (newSettings: AppSettings) => {
-    setSettings(newSettings);
-    DBService.saveSettings(newSettings);
-    if (webAppUrl) autoSyncToGoogleSheets(bookings, members, financials, newSettings);
+    const sanitized = {
+      ...newSettings,
+      adminName: replaceBton(newSettings.adminName)
+    };
+    setSettings(sanitized);
+    DBService.saveSettings(sanitized);
+    if (webAppUrl) autoSyncToGoogleSheets(bookings, members, financials, sanitized);
   };
 
   const handleAddBooking = (booking: Booking) => {

@@ -72,17 +72,42 @@ const INITIAL_FINANCIALS: FinancialRecord[] = [
   { id: 'F-3', kategori: 'Pengeluaran Operasional', jumlah: 15000, tipe: 'Pengeluaran', tanggal: '2026-06-23', keterangan: 'Beli shuttlecock baru' },
 ];
 
+function replaceBton(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/FAZADA\s+Bton/g, 'FAZADA BADMINTON')
+    .replace(/Fazada\s+Bton/g, 'Fazada Badminton')
+    .replace(/FAZADA\s+bton/gi, 'FAZADA BADMINTON')
+    .replace(/Fazada\s+bton/gi, 'Fazada Badminton')
+    .replace(/bton/gi, (match) => {
+      if (match === match.toUpperCase()) return 'BADMINTON';
+      if (match[0] === match[0].toUpperCase()) return 'Badminton';
+      return 'badminton';
+    });
+}
+
 export class DBService {
   // Load initial settings
   static getSettings(): AppSettings {
     const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { return DEFAULT_SETTINGS; }
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.adminName) {
+          parsed.adminName = replaceBton(parsed.adminName);
+        }
+        return parsed;
+      } catch (e) {
+        return DEFAULT_SETTINGS;
+      }
     }
     return DEFAULT_SETTINGS;
   }
 
   static saveSettings(settings: AppSettings) {
+    if (settings && settings.adminName) {
+      settings.adminName = replaceBton(settings.adminName);
+    }
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
   }
 
@@ -370,7 +395,7 @@ export class DBService {
       if (settingsRows && settingsRows.length > 0) {
         const sRow = settingsRows[0];
         settings = {
-          adminName: sRow[0] || DEFAULT_SETTINGS.adminName,
+          adminName: replaceBton(sRow[0] || DEFAULT_SETTINGS.adminName),
           adminPhone: sRow[1] || DEFAULT_SETTINGS.adminPhone,
           hargaPerJam: parseInt(sRow[2]) || DEFAULT_SETTINGS.hargaPerJam,
           qrisCodeUrl: sRow[3] || DEFAULT_SETTINGS.qrisCodeUrl,
