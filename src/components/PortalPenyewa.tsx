@@ -655,9 +655,23 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-6 animate-in fade-in zoom-in-95 duration-200">
             <div className="text-center space-y-2">
-              <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-100">
-                <CheckCircle className="w-10 h-10" />
-              </div>
+              {settings.logoUrl ? (
+                <div className="relative w-20 h-20 mx-auto">
+                  <img
+                    src={settings.logoUrl}
+                    alt="Logo Lapangan"
+                    className="w-20 h-20 rounded-full mx-auto border-4 border-emerald-50 shadow-md object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-1 rounded-full border-2 border-white shadow">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              ) : (
+                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-100">
+                  <CheckCircle className="w-10 h-10" />
+                </div>
+              )}
               <h3 className="text-xl font-black text-emerald-800">Booking Berhasil & Terkonfirmasi!</h3>
               <p className="text-xs text-gray-500">Notifikasi konfirmasi otomatis telah diproses & dikirim ke WhatsApp Anda.</p>
             </div>
@@ -704,7 +718,7 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
             </div>
 
             <div className="bg-blue-50 text-blue-700 p-3 rounded-xl text-[11px] leading-relaxed text-center font-medium border border-blue-100">
-              📲 Screenshot halaman ini atau cek folder pesan WhatsApp Anda untuk verifikasi petugas saat memasuki lapangan Fazada Badminton.
+              📲 Screenshot halaman ini atau cek folder pesan WhatsApp Anda untuk verifikasi petugas saat memasuki lapangan {settings.adminName || 'Fazada Badminton'}.
             </div>
 
             <button

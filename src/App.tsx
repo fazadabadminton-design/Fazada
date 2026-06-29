@@ -254,7 +254,7 @@ function writeSettingsSheet(s) {
             )}
             <div>
               <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-1.5">
-                Fazada Badminton <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full uppercase">VIP Court</span>
+                {settings.adminName || 'Fazada Badminton'} <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full uppercase">VIP Court</span>
               </h1>
               <p className="text-xs text-gray-400">Pemesanan Lapangan Online & Jadwal Real-Time</p>
             </div>
@@ -419,7 +419,7 @@ function writeSettingsSheet(s) {
 
       {/* Footer */}
       <footer className="bg-white border-t border-gray-100 py-8 text-center text-xs text-gray-400 mt-20" id="footer-section">
-        <p className="font-semibold text-gray-500">© 2026 Fazada Badminton - All Rights Reserved.</p>
+        <p className="font-semibold text-gray-500">© 2026 {settings.adminName || 'Fazada Badminton'} - All Rights Reserved.</p>
         <p className="mt-1">Built with high-fidelity React, Tailwind CSS, and Google Workspace Integration.</p>
       </footer>
     </div>
