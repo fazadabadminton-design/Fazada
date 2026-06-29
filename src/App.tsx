@@ -254,7 +254,7 @@ function writeSettingsSheet(s) {
             )}
             <div>
               <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-1.5">
-                {settings.adminName || 'Fazada Badminton'} <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full uppercase">VIP Court</span>
+                {(settings.adminName || 'Fazada Badminton').replace(/\s*[Aa][Dd][Mm][Ii][Nn]\s*/g, '')} <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full uppercase">VIP Court</span>
               </h1>
               <p className="text-xs text-gray-400">Pemesanan Lapangan Online & Jadwal Real-Time</p>
             </div>

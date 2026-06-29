@@ -618,16 +618,16 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
                     <div className="space-y-1 text-[11px]">
                       <p>Transfer ke Rekening Bank {settings.bankName || 'BCA'}:</p>
                       <p className="font-bold text-gray-800 text-sm">{settings.bankAccountNumber || '1234567890'}</p>
-                      <p>a.n. <span className="font-semibold">{settings.adminName || 'Fazada Badminton Admin'}</span></p>
+                      <p>a.n. <span className="font-semibold">{(settings.adminName || 'Fazada Badminton').replace(/\s*[Aa][Dd][Mm][Ii][Nn]\s*/g, '')}</span></p>
                     </div>
                   ) : (
                     <div className="space-y-1 text-[11px]">
-                      <p>Kirim Saldo {paymentMethod} ke Nomor Admin:</p>
+                      <p>Kirim Saldo {paymentMethod} ke Nomor Tujuan:</p>
                       <p className="font-bold text-gray-800 text-sm">{settings.adminPhone}</p>
-                      <p>a.n. <span className="font-semibold">{settings.adminName}</span></p>
+                      <p>a.n. <span className="font-semibold">{(settings.adminName || '').replace(/\s*[Aa][Dd][Mm][Ii][Nn]\s*/g, '')}</span></p>
                     </div>
                   )}
-                  <p className="text-[10px] mt-2 text-amber-700">Setelah transfer, mohon kirim bukti pembayaran melalui WhatsApp ke <span className="font-bold">{settings.adminPhone}</span> untuk konfirmasi manual admin.</p>
+                  <p className="text-[10px] mt-2 text-amber-700">Setelah transfer, mohon kirim bukti pembayaran melalui WhatsApp ke <span className="font-bold">{settings.adminPhone}</span> untuk konfirmasi manual.</p>
                 </div>
               )}
             </div>
@@ -718,7 +718,7 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
             </div>
 
             <div className="bg-blue-50 text-blue-700 p-3 rounded-xl text-[11px] leading-relaxed text-center font-medium border border-blue-100">
-              📲 Screenshot halaman ini atau cek folder pesan WhatsApp Anda untuk verifikasi petugas saat memasuki lapangan {settings.adminName || 'Fazada Badminton'}.
+              📲 Screenshot halaman ini atau cek folder pesan WhatsApp Anda untuk verifikasi petugas saat memasuki lapangan {(settings.adminName || 'Fazada Badminton').replace(/\s*[Aa][Dd][Mm][Ii][Nn]\s*/g, '')}.
             </div>
 
             <button

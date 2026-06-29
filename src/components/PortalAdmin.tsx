@@ -723,7 +723,7 @@ export default function PortalAdmin({
                 <div className="space-y-1 text-gray-500">
                   <div className="flex justify-between">
                     <span>Nama Klub</span>
-                    <span className="font-semibold text-gray-800">Fazada Badminton</span>
+                    <span className="font-semibold text-gray-800">{(settings.adminName || 'Fazada Badminton').replace(/\s*[Aa][Dd][Mm][Ii][Nn]\s*/g, '')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Tarif per Jam</span>
