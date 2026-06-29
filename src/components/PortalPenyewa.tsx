@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Calendar, Clock, CheckCircle, User, Phone, History, CreditCard, ChevronRight, QrCode, Sparkles, Loader } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Calendar, Clock, CheckCircle, User, Phone, History, CreditCard, ChevronRight, QrCode, Sparkles, Loader, Check, X } from 'lucide-react';
 import { Booking, AppSettings } from '../types';
 
 interface PortalPenyewaProps {
@@ -51,6 +51,18 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastCreatedBooking, setLastCreatedBooking] = useState<Booking | null>(null);
+  const [showToast, setShowToast] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('booking_success_toast') === 'true') {
+      setShowToast(true);
+      localStorage.removeItem('booking_success_toast');
+      const timer = setTimeout(() => {
+        setShowToast(false);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Quick Date Helpers (Today + 6 upcoming days)
   const dateOptions = useMemo(() => {
@@ -205,7 +217,28 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
   };
 
   return (
-    <div className="space-y-8" id="portal-penyewa">
+    <div className="space-y-8 relative animate-in fade-in duration-300" id="portal-penyewa">
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-full max-w-sm px-4 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-emerald-600 text-white px-4 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 border border-emerald-500/30">
+            <div className="bg-white/20 p-1.5 rounded-full text-white shrink-0">
+              <Check className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <p className="font-extrabold text-xs">Pemesanan Berhasil!</p>
+              <p className="text-[10px] text-emerald-100 font-medium">Jadwal Anda telah berhasil disimpan di database server & disinkronkan.</p>
+            </div>
+            <button 
+              onClick={() => setShowToast(false)} 
+              className="text-white hover:text-emerald-100 transition p-1 shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Navigation */}
       <div className="flex border-b border-gray-200">
         <button
@@ -754,7 +787,10 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
             </div>
 
             <button
-              onClick={() => setShowSuccessModal(false)}
+              onClick={() => {
+                localStorage.setItem('booking_success_toast', 'true');
+                window.location.reload();
+              }}
               className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition cursor-pointer"
             >
               Mengerti & Selesai
