@@ -181,30 +181,47 @@ export default function App() {
     if (webAppUrl) autoSyncToGoogleSheets(bookings, members, financials, sanitized);
   };
 
-  const handleAddBooking = (booking: Booking) => {
-    const updatedBookings = [booking, ...bookings];
+  const handleAddBooking = async (bookingOrBookings: Booking | Booking[]): Promise<boolean> => {
+    const newBookingsList = Array.isArray(bookingOrBookings) ? bookingOrBookings : [bookingOrBookings];
+    const updatedBookings = [...newBookingsList, ...bookings];
     setBookings(updatedBookings);
     DBService.saveBookings(updatedBookings);
 
     // If Lunas, automatically add to cash flow / financials
-    if (booking.status === 'Lunas') {
-      const finId = 'F-' + Math.floor(1000 + Math.random() * 9000);
-      const newFin: FinancialRecord = {
-        id: finId,
-        bookingId: booking.id,
-        kategori: 'Pemasukan Lapangan',
-        jumlah: booking.totalBayar,
-        tipe: 'Pemasukan',
-        tanggal: booking.tanggal,
-        keterangan: `Sewa ${booking.lapangan} - ${booking.pemesan} (${booking.jam})`,
-      };
-      const updatedFin = [newFin, ...financials];
+    let updatedFin = financials;
+    let finAdded = false;
+    newBookingsList.forEach(booking => {
+      if (booking.status === 'Lunas') {
+        const finId = 'F-' + Math.floor(1000 + Math.random() * 9000);
+        const newFin: FinancialRecord = {
+          id: finId,
+          bookingId: booking.id,
+          kategori: 'Pemasukan Lapangan',
+          jumlah: booking.totalBayar,
+          tipe: 'Pemasukan',
+          tanggal: booking.tanggal,
+          keterangan: `Sewa ${booking.lapangan} - ${booking.pemesan} (${booking.jam})`,
+        };
+        updatedFin = [newFin, ...updatedFin];
+        finAdded = true;
+      }
+    });
+
+    if (finAdded) {
       setFinancials(updatedFin);
       DBService.saveFinancials(updatedFin);
-      if (webAppUrl) autoSyncToGoogleSheets(updatedBookings, members, updatedFin, settings);
-    } else {
-      if (webAppUrl) autoSyncToGoogleSheets(updatedBookings, members, financials, settings);
     }
+
+    if (webAppUrl) {
+      try {
+        await autoSyncToGoogleSheets(updatedBookings, members, updatedFin, settings);
+        return true;
+      } catch (e) {
+        console.error('Failed to sync booking to Google Sheets:', e);
+        return false;
+      }
+    }
+    return true;
   };
 
   // Google Sheets Apps Script Web App Auto Sync
@@ -216,9 +233,8 @@ export default function App() {
   ) => {
     if (!webAppUrl) return;
     try {
-      await fetch(webAppUrl, {
+      const response = await fetch(webAppUrl, {
         method: 'POST',
-        mode: 'no-cors', // Avoid complex CORS preflights for quick deployment
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'sync_all',
@@ -228,8 +244,20 @@ export default function App() {
           settings: currentSettings,
         }),
       });
+
+      if (!response.ok) {
+        throw new Error(`Sync HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.status === 'success' && result.data) {
+        updateStatesFromGoogleData(result.data);
+      } else if (result.status !== 'success') {
+        throw new Error(result.message || 'Unknown Google Sheet sync error');
+      }
     } catch (e) {
       console.warn('Silent auto-sync failed:', e);
+      throw e;
     }
   };
 

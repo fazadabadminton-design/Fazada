@@ -5,7 +5,7 @@ import { Booking, AppSettings } from '../types';
 interface PortalPenyewaProps {
   bookings: Booking[];
   settings: AppSettings;
-  onAddBooking: (booking: Booking) => void;
+  onAddBooking: (booking: Booking | Booking[]) => Promise<boolean> | void;
   isSyncing: boolean;
 }
 
@@ -52,6 +52,7 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastCreatedBooking, setLastCreatedBooking] = useState<Booking | null>(null);
   const [showToast, setShowToast] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('booking_success_toast') === 'true') {
@@ -171,7 +172,8 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
   };
 
   // Final confirmation & save booking
-  const handleConfirmBooking = () => {
+  const handleConfirmBooking = async () => {
+    setIsSubmitting(true);
     const dateFormatted = new Date().toLocaleString('id-ID');
     const newBookings: Booking[] = selectedSlots.map((slot, index) => {
       const id = 'B-' + Math.floor(100000 + Math.random() * 900000);
@@ -189,8 +191,12 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
       };
     });
 
-    // Save the bookings (one by one or just trigger save)
-    newBookings.forEach(booking => onAddBooking(booking));
+    try {
+      // Save the bookings (as a single transaction/array call to avoid multiple separate syncs)
+      await onAddBooking(newBookings);
+    } catch (err) {
+      console.error('Error adding booking:', err);
+    }
 
     // Save for the receipt view (summarize selected slots)
     const summaryBooking: Booking = {
@@ -213,6 +219,7 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
     // Clear form
     setSelectedSlots([]);
     setShowConfirmModal(false);
+    setIsSubmitting(false);
     setShowSuccessModal(true);
   };
 
@@ -699,16 +706,25 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
 
             <div className="flex gap-3">
               <button
-                onClick={() => setShowConfirmModal(false)}
-                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition cursor-pointer text-center text-sm"
+                onClick={() => !isSubmitting && setShowConfirmModal(false)}
+                disabled={isSubmitting}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition cursor-pointer text-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Kembali
               </button>
               <button
                 onClick={handleConfirmBooking}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition cursor-pointer text-center text-sm"
+                disabled={isSubmitting}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition cursor-pointer text-center text-sm flex items-center justify-center gap-2 disabled:opacity-80 disabled:cursor-not-allowed"
               >
-                Saya Sudah Bayar
+                {isSubmitting ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    <span>Menyimpan...</span>
+                  </>
+                ) : (
+                  <span>Saya Sudah Bayar</span>
+                )}
               </button>
             </div>
           </div>
