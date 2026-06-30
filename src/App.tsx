@@ -44,7 +44,7 @@ export default function App() {
   const [webAppUrl, setWebAppUrl] = useState(() => {
     const saved = localStorage.getItem('fazada_web_app_url');
     const defaultUrl = 'https://script.google.com/macros/s/AKfycbzAgM2Dj0yQF3apCRZgam-6ZY-nLNfonETVmcFdGSM55tuiSRMPzdBaTzIDY40DickE/exec';
-    if (!saved || saved.includes('YOUR_') || saved.trim() === '') {
+    if (!saved || saved.includes('YOUR_') || saved.trim() === '' || !saved.includes('AKfycbzAgM2Dj0yQF3apCRZgam')) {
       localStorage.setItem('fazada_web_app_url', defaultUrl);
       return defaultUrl;
     }
