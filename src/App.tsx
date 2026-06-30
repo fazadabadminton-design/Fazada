@@ -71,6 +71,15 @@ export default function App() {
     }
   }, []);
 
+  // 4. Auto-pull updates from Google Sheets every 20 seconds to keep devices in sync
+  useEffect(() => {
+    if (!webAppUrl) return;
+    const interval = setInterval(() => {
+      pullDataFromGoogleSheets(webAppUrl);
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [webAppUrl]);
+
   // Background Pull from Google Sheets function
   const pullDataFromGoogleSheets = async (url: string) => {
     if (!url) return;
@@ -88,7 +97,7 @@ export default function App() {
       try {
         const res = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify({ action: 'get_data' }),
         });
         const result = await res.json();
@@ -235,7 +244,7 @@ export default function App() {
     try {
       const response = await fetch(webAppUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({
           action: 'sync_all',
           bookings: currentBookings,
@@ -278,7 +287,7 @@ export default function App() {
       // 1. Send all current local data as primary push
       const response = await fetch(webAppUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({
           action: 'sync_all',
           bookings,
