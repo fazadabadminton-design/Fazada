@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle, User, Phone, History, CreditCard, ChevronRight, QrCode, Sparkles, Loader, Check, X } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, User, Phone, History, CreditCard, ChevronRight, QrCode, Sparkles, Loader, Check, X, RefreshCw } from 'lucide-react';
 import { Booking, AppSettings } from '../types';
 
 interface PortalPenyewaProps {
@@ -7,6 +7,7 @@ interface PortalPenyewaProps {
   settings: AppSettings;
   onAddBooking: (booking: Booking | Booking[]) => Promise<boolean> | void;
   isSyncing: boolean;
+  onRefresh?: () => Promise<void> | void;
 }
 
 const AVAILABLE_HOURS = [
@@ -17,6 +18,7 @@ const AVAILABLE_HOURS = [
   '10:00 - 11:00',
   '11:00 - 12:00',
   '12:00 - 13:00',
+  '12:00 - 14:00', // support existing or custom
   '13:00 - 14:00',
   '14:00 - 15:00',
   '15:00 - 16:00',
@@ -29,7 +31,7 @@ const AVAILABLE_HOURS = [
   '22:00 - 23:00',
 ];
 
-export default function PortalPenyewa({ bookings, settings, onAddBooking, isSyncing }: PortalPenyewaProps) {
+export default function PortalPenyewa({ bookings, settings, onAddBooking, isSyncing, onRefresh }: PortalPenyewaProps) {
   // Tabs: 'booking' or 'history'
   const [activeTab, setActiveTab] = useState<'booking' | 'history'>('booking');
 
@@ -296,8 +298,19 @@ export default function PortalPenyewa({ bookings, settings, onAddBooking, isSync
                 <span>Menyinkronkan...</span>
               </div>
             ) : (
-              <div className="text-[10px] text-gray-400">
-                Update otomatis tiap 15 detik
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-400">Update tiap 15s</span>
+                {onRefresh && (
+                  <button 
+                    onClick={() => onRefresh()}
+                    className="flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-emerald-50 text-emerald-600 rounded-lg border border-gray-200 shadow-sm active:scale-95 transition cursor-pointer font-extrabold text-[10px]"
+                    title="Segarkan Jadwal Sekarang"
+                    id="btn-refresh-penyewa"
+                  >
+                    <RefreshCw className="w-2.5 h-2.5" />
+                    <span>Segarkan</span>
+                  </button>
+                )}
               </div>
             )}
           </div>

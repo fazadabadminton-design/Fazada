@@ -41,7 +41,15 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>(DBService.getSettings());
 
   // Google Sheet Web App Integration States
-  const [webAppUrl, setWebAppUrl] = useState(() => localStorage.getItem('fazada_web_app_url') || '');
+  const [webAppUrl, setWebAppUrl] = useState(() => {
+    const saved = localStorage.getItem('fazada_web_app_url');
+    const defaultUrl = 'https://script.google.com/macros/s/AKfycbzAgM2Dj0yQF3apCRZgam-6ZY-nLNfonETVmcFdGSM55tuiSRMPzdBaTzIDY40DickE/exec';
+    if (!saved || saved.includes('YOUR_') || saved.trim() === '') {
+      localStorage.setItem('fazada_web_app_url', defaultUrl);
+      return defaultUrl;
+    }
+    return saved;
+  });
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [showSheetGuide, setShowSheetGuide] = useState(false);
@@ -80,20 +88,68 @@ export default function App() {
     return () => clearInterval(interval);
   }, [webAppUrl]);
 
+  // Helper to sanitize any Date or String to YYYY-MM-DD format
+  const sanitizeDateToYYYYMMDD = (dateVal: any): string => {
+    if (!dateVal) return '';
+    const str = String(dateVal).trim();
+    
+    // If it contains a T (like ISO format "2026-06-30T00:00:00.000Z"), extract date part
+    if (str.includes('T')) {
+      const part = str.split('T')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(part)) return part;
+    }
+    
+    // If it is in format DD/MM/YYYY or DD-MM-YYYY (Indonesian format common in Sheets)
+    const ddmmyyyyPattern = /^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/;
+    const match = str.match(ddmmyyyyPattern);
+    if (match) {
+      const d = match[1].padStart(2, '0');
+      const m = match[2].padStart(2, '0');
+      const y = match[3];
+      return `${y}-${m}-${d}`;
+    }
+
+    // If it's already exactly YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      return str;
+    }
+    
+    // Fallback parser
+    try {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    } catch (e) {
+      // Ignore
+    }
+    
+    return str;
+  };
+
   // Background Pull from Google Sheets function
   const pullDataFromGoogleSheets = async (url: string) => {
     if (!url) return;
     try {
-      // We first try a GET request (supported by our doGet in the updated Apps Script)
-      const res = await fetch(url);
+      // Append a cache buster timestamp to ensure we bypass browser and proxy caching (especially on mobile/HP)
+      const separator = url.includes('?') ? '&' : '?';
+      const cacheBustUrl = `${url}${separator}_t=${Date.now()}`;
+      
+      const res = await fetch(cacheBustUrl);
+      if (!res.ok) throw new Error('GET response not ok');
       const result = await res.json();
       
       if (result.status === 'success' && result.data) {
         updateStatesFromGoogleData(result.data);
+      } else {
+        throw new Error(result.message || 'GET response indicates failure');
       }
     } catch (e) {
       console.warn('Background GET pull failed, trying POST get_data:', e);
-      // Fallback to POST get_data (sometimes web apps only accept POST depending on security configuration)
+      // Fallback to POST get_data (some web apps only accept POST depending on security settings)
       try {
         const res = await fetch(url, {
           method: 'POST',
@@ -110,11 +166,49 @@ export default function App() {
     }
   };
 
+  // Manual Triggered Refresh for Tenants/HP
+  const handleRefreshPenyewa = async () => {
+    if (!webAppUrl) return;
+    setIsSyncing(true);
+    try {
+      const separator = webAppUrl.includes('?') ? '&' : '?';
+      const cacheBustUrl = `${webAppUrl}${separator}_t=${Date.now()}`;
+      
+      const res = await fetch(cacheBustUrl);
+      if (!res.ok) throw new Error('GET response not ok');
+      const result = await res.json();
+      
+      if (result.status === 'success' && result.data) {
+        updateStatesFromGoogleData(result.data);
+      } else {
+        throw new Error(result.message || 'GET status not success');
+      }
+    } catch (e) {
+      console.warn('Manual GET pull failed, trying POST get_data:', e);
+      try {
+        const res = await fetch(webAppUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'get_data' }),
+        });
+        const result = await res.json();
+        if (result.status === 'success' && result.data) {
+          updateStatesFromGoogleData(result.data);
+        }
+      } catch (postErr) {
+        console.error('All refresh attempts failed:', postErr);
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Helper to parse and update local and react states
   const updateStatesFromGoogleData = (data: any) => {
     if (data.bookings && Array.isArray(data.bookings)) {
       const formattedBookings = data.bookings.map((b: any) => ({
         ...b,
+        tanggal: sanitizeDateToYYYYMMDD(b.tanggal),
         totalBayar: Number(b.totalBayar) || 50000,
       }));
       setBookings(formattedBookings);
@@ -123,6 +217,7 @@ export default function App() {
     if (data.members && Array.isArray(data.members)) {
       const formattedMembers = data.members.map((m: any) => ({
         ...m,
+        tanggalDaftar: sanitizeDateToYYYYMMDD(m.tanggalDaftar),
         biayaSewa: m.biayaSewa ? Number(m.biayaSewa) : undefined,
       }));
       setMembers(formattedMembers);
@@ -131,6 +226,7 @@ export default function App() {
     if (data.financials && Array.isArray(data.financials)) {
       const formattedFinancials = data.financials.map((f: any) => ({
         ...f,
+        tanggal: sanitizeDateToYYYYMMDD(f.tanggal),
         jumlah: Number(f.jumlah) || 0,
       }));
       setFinancials(formattedFinancials);
@@ -607,6 +703,7 @@ function writeSettingsSheet(s) {
             settings={settings}
             onAddBooking={handleAddBooking}
             isSyncing={isSyncing}
+            onRefresh={handleRefreshPenyewa}
           />
         ) : (
           <PortalAdmin
